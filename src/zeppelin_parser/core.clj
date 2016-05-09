@@ -19,6 +19,17 @@
                 symbol = #'\\w+'
                 "))
 
+(defn strip-comments [s]
+  (if (.contains s "//")
+    (.substring s 0 (.indexOf s "//"))
+    s))
+
+(defn clean-code [{text "text" :as m}]
+  (if (and text (not (.startsWith (.trim text) "%")))
+    (apply str
+           (interpose "\n"
+                      (map strip-comments (.split text "\n"))))))
+
 (defn get-assignment [[_ _ _ [_ val] & assigment]]
   (let [
          assigment (apply str (map second assigment))
@@ -32,7 +43,7 @@
 
 (defn get-m [f]
   (let [
-         paragraphs (map #(% "text") ((json/read-str (slurp f)) "paragraphs"))
+         paragraphs (filter identity (map clean-code ((json/read-str (slurp f)) "paragraphs")))
          assignments (into {} (mapcat get-assigments paragraphs))
          symbols (keys assignments)
          symbol-assignments (value-map (fn [s] (filter #(.contains s %) symbols)) assignments)
@@ -46,6 +57,7 @@
   (let [m (get-m f)]
     (viz/save-graph (keys m) m
                     :node->descriptor (fn [n] {:label n})
+                    :vertical? true
                     :filename "graph.png")
     (open "graph.png")))
 
